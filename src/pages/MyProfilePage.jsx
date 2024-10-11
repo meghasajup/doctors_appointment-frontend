@@ -1,40 +1,63 @@
-import React, { useState } from 'react';
-import Lottie from 'react-lottie';
-import profileAnimation from '../assets/assets_frontend/json/profile.json'; 
+import React, { useContext, useState } from 'react';
+import Lottie from 'lottie-react';
+import profileAnimation from '../assets/assets_frontend/json/profile.json';
+import { AppContext } from '../context/AppContext';
 import { assets } from '../assets/assets_frontend/assets';
+import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const MyProfilePage = () => {
-  const [userData, setUserData] = useState({
-    name: 'Abhin',
-    Image: assets.profile_pic,
-    email: 'abhinraj8086@gmail.com',
-    phone: '1234567890',
-    address: {
-      line1: "57th Cross, Richmond ",
-      line2: "Circle, Church Road, London",
-    },
-    gender: "Male",
-    dob: "1990-01-01",
-  });
+  const { userData, setUserData, token, backendUrl, loadUserProfileData } = useContext(AppContext);
 
-  const [isEdit, setEdit] = useState(false);
+  const [isEdit, setIsEdit] = useState(false);
+  const [image, setImage] = useState(false);
 
-  const defaultOptions = {
-    loop: true,
-    autoplay: true,
-    animationData: profileAnimation, // Use the profile animation
-    rendererSettings: {
-      preserveAspectRatio: 'xMidYMid slice',
-    },
-  };
+  const updateUserProfileData = async () => {
+    try {
+      const formData = new FormData()
+      formData.append('name', userData.name)
+      formData.append('phone', userData.phone)
+      formData.append('address', JSON.stringify(userData.address))
+      formData.append('gender', userData.gender)
+      formData.append('dob', userData.dob)
 
-  return (
+      image && formData.append('image', image);
+
+      const {data} = await axios.post(backendUrl + '/api/user/update-profile', formData, {headers:{token}})
+
+      if(data.success){
+        toast.success(data.message)
+        await loadUserProfileData()
+        setIsEdit(false)
+        setImage(false)
+      } else {
+        toast.error(data.message)
+      }
+
+    } catch (error) {
+      console.log(error)
+      toast.error(error.message)
+    }
+  }
+
+  return userData && (
     <div className="max-w-6xl mx-auto p-6">
       {/* Dividing the page into two sections */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left section - Profile Details */}
         <div className="flex flex-col gap-2 text-sm">
-          <img className='w-36 rounded' src={userData.Image} alt="Profile" />
+
+          {
+            isEdit
+              ? <label htmlFor='image'>
+                <div className='inline-block relative cursor-pointer'>
+                  <img className='w-36 rounded opacity-75' src={image ? URL.createObjectURL(image) : userData.image} alt="" />
+                  <img className='w-10 absolute bottom-12 right-12' src={image ? '' : assets.upload_icon} alt="" />
+                </div>
+                <input onChange={(e) => setImage(e.target.files[0])} type="file" id="image" hidden />
+              </label>
+              : <img className='w-36 rounded' src={userData.image} alt="Profile" />
+          }
           {
             isEdit
               ? <input className='bg-gray-50 text-3xl font-medium max-w-60 mt-4' type="text" value={userData.name} onChange={e => setUserData(prev => ({ ...prev, name: e.target.value }))} />
@@ -54,19 +77,21 @@ const MyProfilePage = () => {
                   : <p className='text-blue-400'>{userData.phone}</p>
               }
               <p className='font-medium'>Address:</p>
-              {
-                isEdit
-                  ? <p>
+              {userData && userData.address ? (
+                isEdit ? (
+                  <p>
                     <input className='bg-gray-50' onChange={(e) => setUserData(prev => ({ ...prev, address: { ...prev.address, line1: e.target.value } }))} value={userData.address.line1} type="text" />
                     <br />
                     <input className='bg-gray-50' onChange={(e) => setUserData(prev => ({ ...prev, address: { ...prev.address, line2: e.target.value } }))} value={userData.address.line2} type="text" />
                   </p>
-                  : <p className='text-gray-500'>
+                ) : (
+                  <p className='text-gray-500'>
                     {userData.address.line1}
                     <br />
                     {userData.address.line2}
                   </p>
-              }
+                )
+              ) : null}
             </div>
           </div>
 
@@ -94,8 +119,8 @@ const MyProfilePage = () => {
           <div className='mt-10'>
             {
               isEdit
-                ? <button className='border border-primary px-8 py-2 rounded-full hover:bg-primary hover:text-white transition-all' onClick={() => setEdit(false)}>Save information</button>
-                : <button className='border border-primary px-8 py-2 rounded-full hover:bg-primary hover:text-white transition-all' onClick={() => setEdit(true)}>Edit</button>
+                ? <button className='border border-primary px-8 py-2 rounded-full hover:bg-primary hover:text-white transition-all' onClick={updateUserProfileData}>Save information</button>
+                : <button className='border border-primary px-8 py-2 rounded-full hover:bg-primary hover:text-white transition-all' onClick={() => setIsEdit(true)}>Edit</button>
             }
           </div>
         </div>
@@ -103,7 +128,7 @@ const MyProfilePage = () => {
         {/* Right section - Lottie Animation */}
         <div className="flex justify-center items-center">
           {/* Lottie animation */}
-          <Lottie options={defaultOptions} height={400} width={400} />
+          <Lottie animationData={profileAnimation} loop={true} height={400} width={400} />
         </div>
       </div>
     </div>
